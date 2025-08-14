@@ -7,11 +7,11 @@ drosera_address = "0x91cB447BaFc6e0EA0F4Fe056F5a9b1F14bb06e5D"
 
 [traps.mytrap]
 path = "out/RapidTransactionTrap.sol/RapidTransactionTrap.json"
-response_contract = "0x27AE5968DAB533Ad928aFeB24B0f98d5fa4963AA"
-response_function = "processResponse(bool,bytes)"
+response_contract = "0x21b138b4D1D6E1640BA52DCcCce2DB7be4C5dD3e"
+response_function = "processResponse(bytes)"
 cooldown_period_blocks = 33
 min_number_of_operators = 1
 max_number_of_operators = 2
-block_sample_size = 1
+block_sample_size = 12
 private_trap = true
 whitelist = []

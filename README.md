@@ -1,156 +1,81 @@
 # RapidTransactionTrap
 
-A Solidity smart contract that implements the `ITrap` interface to detect and monitor rapid transaction patterns from wallet addresses, designed for anomaly detection and security monitoring in blockchain applications.
+The **RapidTransactionTrap** is a smart contract designed for **Drosera Network** that detects suspicious wallet activity based on rapid consecutive balance changes within a short period of time.  
+Its primary goal is to identify potential exploit patterns, high-frequency bot activity, or theft scenarios where assets are moved quickly.
 
-## Overview
+---
 
-The `RapidTransactionTrap` contract monitors transaction frequency from individual wallet addresses and triggers alerts when suspicious rapid transaction patterns are detected. It tracks transactions within a 30-second time window and flags wallets that exceed a threshold of 3 transactions within this period.
+## How It Works
 
-## Key Features
+- **WATCH** – The monitored wallet address.
+- **TIME_WINDOW** – The maximum time interval (in seconds) to observe transactions (default: 30 seconds).
+- **THRESHOLD** – The minimum number of balance changes within the time window that will trigger a response (default: 3).
 
-- **Real-time Transaction Monitoring**: Tracks transaction timestamps for each wallet address
-- **Configurable Thresholds**: Uses predefined constants for time window (30 seconds) and transaction count (3 transactions)
-- **Automated Pattern Detection**: Analyzes transaction patterns to identify rapid/suspicious activity
-- **Data Collection**: Implements standardized data collection through the `ITrap` interface
-- **Memory Optimization**: Automatically cleans up old transaction records outside the monitoring window
+### Detection Logic
 
-## Use Cases
+1. The trap collects data on the **WATCH** wallet, including:
+   - Wallet address
+   - Current balance
+   - Current timestamp
 
-### 1. **Bot Detection and Prevention**
-- **Scenario**: Identifying automated trading bots or MEV (Maximum Extractable Value) bots
-- **Implementation**: Monitor for wallets making multiple rapid transactions that could indicate automated behavior
-- **Benefit**: Help protocols identify and potentially limit bot activity that could harm regular users
+2. It compares the collected data with recent snapshots.
 
-### 2. **Flash Loan Attack Detection**
-- **Scenario**: Detecting potential flash loan attacks or complex DeFi exploits
-- **Implementation**: Rapid successive transactions often characterize flash loan attacks where attackers execute multiple operations within a single block or short timeframe
-- **Benefit**: Early warning system for protocols to implement emergency measures
+3. If **THRESHOLD** or more balance changes occur within the **TIME_WINDOW**, the trap triggers a response with encoded details:
+   - Detection type
+   - Target wallet
+   - Timestamp
+   - Configured time window
+   - Threshold
+   - Number of detected changes
 
-### 3. **Sandwich Attack Monitoring**
-- **Scenario**: Identifying sandwich attacks in DEX environments
-- **Implementation**: Attackers often need to make rapid front-running and back-running transactions
-- **Benefit**: Protect users from MEV attacks and improve trading experience
+---
 
-### 4. **Wash Trading Detection**
-- **Scenario**: Identifying artificial trading volume through wash trading
-- **Implementation**: Monitor for wallets making rapid back-and-forth transactions to inflate volume
-- **Benefit**: Maintain market integrity and provide accurate trading metrics
+## Example Use Cases
 
-### 5. **Smart Contract Exploit Prevention**
-- **Scenario**: Detecting potential exploits targeting smart contract vulnerabilities
-- **Implementation**: Many exploits involve rapid transaction sequences to drain funds before detection
-- **Benefit**: Provide early warning to pause contracts or implement emergency measures
+### 1. **Hot Wallet Compromise Detection**
+Detects when a hot wallet experiences multiple rapid transfers in quick succession — a common indicator of private key theft or compromised infrastructure.
 
-### 6. **DeFi Protocol Security**
-- **Scenario**: Monitoring for unusual activity patterns in lending protocols, AMMs, or yield farming
-- **Implementation**: Rapid transactions could indicate arbitrage exploitation or protocol manipulation
-- **Benefit**: Maintain protocol stability and protect user funds
+### 2. **Flash Exploit Monitoring**
+Catches wallet balance changes happening too quickly for normal human activity, which could indicate:
+- Exploits draining funds in multiple small transactions
+- Automated attack scripts
 
-### 7. **Compliance and AML (Anti-Money Laundering)**
-- **Scenario**: Identifying potential money laundering activities
-- **Implementation**: Rapid transaction patterns might indicate attempts to quickly move funds through multiple addresses
-- **Benefit**: Help maintain regulatory compliance and prevent illicit activities
+### 3. **High-Frequency Trading Bot Alerts**
+Flags when a wallet performs multiple balance updates in under 30 seconds, useful for detecting front-running bots or arbitrage bots operating at suspicious speeds.
 
-### 8. **Gaming and NFT Platform Security**
-- **Scenario**: Preventing gaming exploits or NFT manipulation
-- **Implementation**: Rapid transactions could indicate attempts to exploit game mechanics or manipulate NFT markets
-- **Benefit**: Maintain fair gameplay and market integrity
+### 4. **Drain Protection for Custodial Accounts**
+Helps custodial services (e.g., exchanges or DeFi platforms) detect and respond to rapid withdrawals before significant damage occurs.
 
-### 9. **Liquidity Pool Manipulation Detection**
-- **Scenario**: Identifying attempts to manipulate liquidity pools
-- **Implementation**: Monitor for rapid add/remove liquidity operations that could be used for price manipulation
-- **Benefit**: Protect liquidity providers and maintain fair pricing
+### 5. **Airdrop / Token Farming Detection**
+Identifies wallets attempting to game token distributions by making multiple quick in-and-out transfers to simulate higher activity.
 
-### 10. **Emergency Response Systems**
-- **Scenario**: Triggering emergency protocols during suspicious activity
-- **Implementation**: Integrate with circuit breakers or pause mechanisms
-- **Benefit**: Minimize potential damage during security incidents
+---
 
-## Technical Implementation
+## Response Payload Format
 
-### Constants
-- `TIME_WINDOW`: 30 seconds - The time window for monitoring rapid transactions
-- `THRESHOLD`: 3 transactions - The minimum number of transactions to trigger an alert
+When the trap triggers, the payload is encoded as:
 
-### Key Functions
+| Field        | Type    | Description                                    |
+|--------------|---------|------------------------------------------------|
+| `type`       | `uint8` | Detection type code (0 = Rapid Transaction)    |
+| `wallet`     | `address` | Address of the monitored wallet               |
+| `timestamp`  | `uint256` | Time of detection                             |
+| `timeWindow` | `uint256` | Observation time window in seconds            |
+| `threshold`  | `uint256` | Minimum number of changes to trigger detection|
+| `changes`    | `uint256` | Actual number of detected changes              |
 
-#### `collect()`
-- Collects current transaction data for the calling wallet
-- Returns encoded transaction information including timestamps and count
-- Used by the monitoring system to gather data for analysis
+---
 
-#### `shouldRespond(bytes[] calldata data)`
-- Analyzes collected data to determine if rapid transaction pattern exists
-- Returns boolean flag indicating if response is needed and encoded response data
-- Implements the core detection logic
+## Configuration Notes
 
-#### `updateTransactionRecord()`
-- Helper function to manually update transaction records
-- Automatically cleans up old records outside the time window
-- Maintains accurate transaction counts
+- **WATCH** address is hardcoded for this version.
+- **TIME_WINDOW** and **THRESHOLD** are constants in this deployment, but they can be made configurable in future versions.
+- Designed for **Ethereum-compatible blockchains**.
 
-## Integration Examples
+---
 
-### Emergency Pause System
-```solidity
-contract ProtectedProtocol {
-    RapidTransactionTrap public trap;
-    bool public paused = false;
-    
-    modifier whenNotPaused() {
-        require(!paused, "Protocol is paused");
-        _;
-    }
-    
-    function checkAndExecute() external whenNotPaused {
-        bytes memory data = trap.collect();
-        bytes[] memory dataArray = new bytes[](1);
-        dataArray[0] = data;
-        
-        (bool shouldPause,) = trap.shouldRespond(dataArray);
-        if (shouldPause) {
-            paused = true;
-            // Trigger emergency procedures
-        }
-    }
-}
-```
+## Limitations
 
-### Rate Limiting System
-```solidity
-contract RateLimitedDEX {
-    RapidTransactionTrap public trap;
-    mapping(address => uint256) public lastTradeTime;
-    
-    function trade() external {
-        bytes memory data = trap.collect();
-        bytes[] memory dataArray = new bytes[](1);
-        dataArray[0] = data;
-        
-        (bool isRapid,) = trap.shouldRespond(dataArray);
-        if (isRapid) {
-            require(
-                block.timestamp > lastTradeTime[msg.sender] + 60,
-                "Rate limited due to rapid trading"
-            );
-        }
-        
-        // Execute trade logic
-        lastTradeTime[msg.sender] = block.timestamp;
-    }
-}
-```
-
-## Deployment and Configuration
-
-1. Deploy the contract with no constructor parameters
-2. Integrate with your protocol's monitoring systems
-3. Set up automated responses based on detection results
-4. Configure alerting systems for security teams
-
-## Security Considerations
-
-- The contract relies on `tx.origin` which could be manipulated in certain scenarios
-- Consider implementing additional validation layers
-- Regular monitoring and threshold adjustment may be needed based on protocol usage patterns
-- Consider gas costs when implementing in high-frequency environments
+- Detects only **balance changes**, not specific transaction details.
+- Requires frequent calls to `collect()` for accurate monitoring.
+- High-frequency benign activity could trigger false positives.
